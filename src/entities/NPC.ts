@@ -1,93 +1,96 @@
 import Phaser from 'phaser';
-
-interface NPCState {
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  patrolRadius: number;
-  patrolCenterX: number;
-  patrolCenterY: number;
-  changeDirectionTimer: number;
-  zone: string;
-}
+import { Player } from './Player';
 
 export class NPC extends Phaser.Physics.Arcade.Sprite {
-  private state: NPCState;
-  private speed = 30;
-  private changeDirectionInterval = 120; // frames
+  private speed = 80;
+  private scene: Phaser.Scene;
+  private dirX = 0;
+  private dirY = 0;
+  private changeDirectionTimer = 0;
+  private changeDirectionInterval = Phaser.Math.Between(1000, 3000);
+  private isTarget = false;
+  private targetPulse = 0;
+  private originalX: number;
+  private originalY: number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, patrolRadius = 100, zone = 'generic') {
+  constructor(scene: Phaser.Scene, x: number, y: number, id: number) {
     super(scene, x, y, '');
+    this.scene = scene;
+    this.originalX = x;
+    this.originalY = y;
 
-    // Create NPC sprite (different color per zone for debugging)
+    // Create simple NPC sprite (different colors)
+    const colors = [0xff6600, 0x0066ff, 0xff0066, 0x66ff00, 0xffff00, 0x00ffff, 0xff00ff, 0xcccccc];
     const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
-    const colors: { [key: string]: number } = {
-      'downtown': 0x4488ff,
-      'port': 0x44aaff,
-      'industrial': 0x666666,
-      'suburban': 0x88ff88,
-      'farmland': 0xffcc44,
-      'forest': 0x228822,
-      'mansion': 0xffaaff,
-      'generic': 0xcccccc
-    };
-
-    graphics.fillStyle(colors[zone] || colors['generic'], 1);
-    graphics.fillCircle(0, 0, 5);
-    graphics.generateTexture(`npc_${zone}`, 10, 10);
+    graphics.fillStyle(colors[id % colors.length], 1);
+    graphics.fillCircle(10, 10, 10);
+    graphics.generateTexture(`npc_${id}`, 20, 20);
     graphics.destroy();
 
-    this.setTexture(`npc_${zone}`);
-    scene.physics.world.enable(this);
-    scene.add.existing(this);
-
-    this.state = {
-      x,
-      y,
-      vx: (Math.random() - 0.5) * this.speed,
-      vy: (Math.random() - 0.5) * this.speed,
-      patrolRadius,
-      patrolCenterX: x,
-      patrolCenterY: y,
-      changeDirectionTimer: 0,
-      zone
-    };
+    this.setTexture(`npc_${id}`);
+    this.setScale(1.2);
+    this.setBounce(0);
+    this.setCollideWorldBounds(true);
+    this.scene.physics.add.existing(this);
+    
+    this.randomizeDirection();
   }
 
-  update() {
-    this.state.changeDirectionTimer++;
+  private randomizeDirection() {
+    const angle = Phaser.Math.Between(0, 360) * (Math.PI / 180);
+    this.dirX = Math.cos(angle);
+    this.dirY = Math.sin(angle);
+    this.changeDirectionTimer = 0;
+  }
 
-    // Change direction occasionally
-    if (this.state.changeDirectionTimer >= this.changeDirectionInterval) {
-      const angle = Math.random() * Math.PI * 2;
-      this.state.vx = Math.cos(angle) * this.speed;
-      this.state.vy = Math.sin(angle) * this.speed;
-      this.state.changeDirectionTimer = 0;
+  update(player: Player) {
+    this.changeDirectionTimer += 16;
+    
+    if (this.changeDirectionTimer > this.changeDirectionInterval) {
+      this.randomizeDirection();
+      this.changeDirectionInterval = Phaser.Math.Between(1000, 3000);
     }
 
-    // Keep within patrol radius
-    const dx = this.state.patrolCenterX - this.state.x;
-    const dy = this.state.patrolCenterY - this.state.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    // Simple movement
+    this.setVelocity(this.dirX * this.speed, this.dirY * this.speed);
 
-    if (dist > this.state.patrolRadius) {
-      const angle = Math.atan2(dy, dx);
-      this.state.vx = Math.cos(angle) * this.speed;
-      this.state.vy = Math.sin(angle) * this.speed;
+    // Bounce off world bounds
+    if (this.x < 20 || this.x > this.scene.game.config.width as number - 20) {
+      this.dirX *= -1;
+    }
+    if (this.y < 20 || this.y > this.scene.game.config.height as number - 20) {
+      this.dirY *= -1;
     }
 
-    // Update position
-    this.state.x += this.state.vx;
-    this.state.y += this.state.vy;
-    this.setPosition(this.state.x, this.state.y);
+    // Target pulse animation
+    if (this.isTarget) {
+      this.targetPulse += 0.1;
+      const scale = 1.2 + Math.sin(this.targetPulse) * 0.3;
+      this.setScale(scale);
+    }
   }
 
-  getState(): NPCState {
-    return { ...this.state };
+  markAsTarget() {
+    if (!this.isTarget) {
+      this.isTarget = true;
+      this.setTint(0xff0000);
+    }
   }
 
-  getZone(): string {
-    return this.state.zone;
+  unmarkAsTarget() {
+    if (this.isTarget) {
+      this.isTarget = false;
+      this.clearTint();
+      this.targetPulse = 0;
+      this.setScale(1.2);
+    }
+  }
+
+  respawn() {
+    this.unmarkAsTarget();
+    const x = Phaser.Math.Between(100, 700);
+    const y = Phaser.Math.Between(100, 500);
+    this.setPosition(x, y);
+    this.randomizeDirection();
   }
 }
