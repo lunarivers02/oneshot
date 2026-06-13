@@ -1,18 +1,17 @@
 # One Shot
 
-A multiplayer browser-based hitman game. Every player is an assassin hunting one target while being hunted themselves.
+A multiplayer browser-based hitman game where every player is an assassin hunting one target while being hunted themselves. Built with Phaser 3 and TypeScript.
 
-## Features (In Development)
+## Features
 
-- **Isometric 2.5D city environment** — city center to countryside zones
-- **Real-time predator/prey gameplay** — stalk your target while avoiding hunters
-- **60-second matches** — quick, intense rounds
-- **Blend mechanics** — slow down to reduce suspicion and blend with NPCs
-- **Chunk-based world** — dynamic loading for performance
-- **Procedurally generated zones** — unique atmosphere for each region
+### Core Gameplay
+- **Isometric 2.5D city environment** — Dynamic world with 8 distinct zones
+- **Real-time predator/prey gameplay** — Stalk your target while avoiding hunters
+- **60-second matches** — Quick, intense rounds
+- **Blend mechanics** — Slow down to reduce suspicion and blend with NPCs
+- **Character abilities** — 8 unique characters with special abilities
 
-## Map Zones
-
+### Zones
 1. **Downtown** — Dense urban core, neon signs, crowds, high cover
 2. **Port District** — Ships, cranes, warehouses, medium density
 3. **Industrial** — Factories, tight alleys, fewer NPCs
@@ -22,42 +21,139 @@ A multiplayer browser-based hitman game. Every player is an assassin hunting one
 7. **Forest** — Dense cover, zero visibility
 8. **Mansion** — Isolated, elevated, VIP location
 
-## Development
+### Characters
+- **The Ghost** — Enhanced blending, nearly invisible in crowds
+- **The Shadow** — Fast and lethal, low profile
+- **The Courier** — Speed demon with burst ability
+- **The Dealer** — Street smart, knows underground routes
+- **The Fox** — Cunning, can see target location briefly
+- **The Viper** — Aggressive, speed boost after eliminations
+- **The Raven** — Mysterious, temporary undetectability
+- **Atlas** — Tactical heavy hitter, can take a free hit
 
-### Setup
+### Visual Polish
+- **Particle effects** — Kill flashes, blend pulses, suspicion warnings
+- **Neon aesthetics** — Noir color palette with amber and blue lights
+- **Dynamic UI** — Real-time HUD with suspicion meter, kill counter, zone info
+- **Match timer** — 60-second countdown with visual urgency
+- **Weather effects** — Rain, fog overlays per zone
+
+## Development Setup
+
+### Requirements
+- Node.js 16+
+- npm or yarn
+
+### Installation
 
 ```bash
 npm install
+```
+
+### Run Development Server
+
+```bash
 npm run dev
 ```
 
 Game will open at http://localhost:3000
 
-### Controls
-
-- **Arrow Keys** — Move
-- **Shift** — Blend (slow down, reduce suspicion)
-
-### Build
+### Build for Production
 
 ```bash
 npm run build
 ```
 
+Output goes to `dist/`
+
+## Controls
+
+- **WASD / Arrow Keys** — Move character
+- **Shift** — Blend in (slow down, reduce suspicion)
+- **E / Space** — Eliminate target (when close)
+- **Left/Right Arrow** — Select character (menu)
+- **Space / Enter** — Start game (menu)
+
+## Game Mechanics
+
+### Suspicion System
+- Suspicion rises when near NPCs and not blending
+- Blending reduces suspicion gain by 50%
+- Zone difficulty affects detection range
+- Green (0-40%) → Yellow (40-70%) → Red (70-100%)
+
+### Scoring
+- **Eliminating target** — 500 points + time bonus
+- **Eliminating civilian** — 100 points (risky)
+- **Surviving time** — +10 points per second
+- **Perfect blend** — Zone completion bonus
+
+### Character Abilities
+Each character has a unique ability:
+- **Ghost**: 50% slower suspicion when blending
+- **Shadow**: -20% detection range
+- **Courier**: 1.5x speed for 30s (hold Shift)
+- **Dealer**: Access to restricted zones
+- **Fox**: See target location every 15s
+- **Viper**: +50% speed for 10s after elimination
+- **Raven**: 10s of undetectability every 20s
+- **Atlas**: Take 1 free hit without penalty
+
 ## Architecture
+
+```
+src/
+├── main.ts              # Game entry point
+├── scenes/
+│   ├── MenuScene.ts     # Character selection
+│   └── GameScene.ts     # Main game loop
+├── entities/
+│   ├── Player.ts        # Player controller
+│   ├── NPC.ts           # NPC behavior
+│   └── Characters.ts    # Character definitions
+├── world/
+│   ├── WorldManager.ts  # Zone management
+│   ├── IsometricMap.ts  # Isometric rendering
+│   └── ZoneData.ts      # Zone configurations
+├── core/
+│   ├── GameManager.ts   # Game state & scoring
+│   ├── PlayerProfile.ts # Player data structures
+│   └── MultiplayerManager.ts # Networking
+├── ui/
+│   └── UIManager.ts     # HUD management
+└── effects/
+    └── ParticleEffects.ts # Visual effects
+```
+
+## Upcoming Features
+
+- [ ] Multiplayer server backend (Socket.io)
+- [ ] Leaderboards and seasonal rankings
+- [ ] Character cosmetics and kill effects
+- [ ] Map voting system
+- [ ] Daily challenges
+- [ ] Mobile PWA support
+- [ ] Voice chat integration
+- [ ] Replay system
+
+## Technology Stack
 
 - **Phaser 3** — Game framework
 - **TypeScript** — Type-safe development
-- **Chunk-based world** — Scalable level streaming
-- **Local-first design** — Built for single-player, ready for networking
+- **Vite** — Build tooling
+- **Socket.io** — Real-time networking
 
-## Next Steps
+## Performance
 
-- [ ] Isometric sprite rendering
-- [ ] Target system and kill mechanics
-- [ ] Suspicion proximity system (detection by nearby players)
-- [ ] Match lifecycle UI
-- [ ] Weather and time-of-day system
-- [ ] Cosmetics and character skins
-- [ ] Networking layer (matchmaking, player sync)
-- [ ] Leaderboards and seasonal rewards
+- Optimized for 60 FPS on modern browsers
+- Lazy zone loading for memory efficiency
+- Efficient particle pooling
+- Minimal draw calls with graphics optimization
+
+## License
+
+Private project
+
+## Contributing
+
+This is a solo dev project. For feature requests or bug reports, open an issue.
