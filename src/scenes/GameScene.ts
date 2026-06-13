@@ -1,44 +1,38 @@
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
 import { NPC } from '../entities/NPC';
-import { IsometricMap } from '../world/IsometricMap';
 import { GameManager } from '../core/GameManager';
+import { WorldManager } from '../world/WorldManager';
 
 export class GameScene extends Phaser.Scene {
   private player!: Player;
   private npcs: NPC[] = [];
-  private map!: IsometricMap;
   private gameManager!: GameManager;
+  private worldManager!: WorldManager;
   private suspicionMeterGraphics!: Phaser.GameObjects.Graphics;
   private killCounterText!: Phaser.GameObjects.Text;
   private suspicionText!: Phaser.GameObjects.Text;
+  private zoneNameText!: Phaser.GameObjects.Text;
+  private matchTimer = 60; // 60-second matches
+  private matchTimerText!: Phaser.GameObjects.Text;
 
   constructor() {
     super('GameScene');
   }
 
   create() {
-    // Initialize game manager
+    // Initialize managers
     this.gameManager = new GameManager();
-
-    // Create isometric map
-    this.map = new IsometricMap(this, 0, 0, 50, 50);
-    this.map.render();
+    this.worldManager = new WorldManager(this);
 
     // Create player at center
-    this.player = new Player(this, 400, 300);
+    this.player = new Player(this, 640, 360);
     this.add.existing(this.player);
 
-    // Create NPCs
-    for (let i = 0; i < 8; i++) {
-      const x = Phaser.Math.Between(100, 700);
-      const y = Phaser.Math.Between(100, 500);
-      const npc = new NPC(this, x, y, i);
-      this.npcs.push(npc);
-      this.add.existing(npc);
-    }
+    // Spawn NPCs based on zone density
+    this.spawnNPCsForZone();
 
-    // Set up camera to follow player
+    // Set up camera
     this.cameras.main.setBounds(0, 0, 1280, 720);
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
 
@@ -55,12 +49,44 @@ export class GameScene extends Phaser.Scene {
       callbackScope: this,
       loop: true
     });
+
+    // Match timer
+    this.time.addEvent({
+      delay: 1000,
+      callback: () => {
+        this.matchTimer--;
+        if (this.matchTimer <= 0) {
+          this.endMatch();
+        }
+      },
+      callbackScope: this,
+      loop: true
+    });
+  }
+
+  private spawnNPCsForZone() {
+    const zone = this.worldManager.getCurrentZone();
+    const npcCount = Math.floor(zone.npcDensity * 8);
+
+    for (let i = 0; i < npcCount; i++) {
+      const x = Phaser.Math.Between(100, 1180);
+      const y = Phaser.Math.Between(100, 660);
+      const npc = new NPC(this, x, y, i);
+      this.npcs.push(npc);
+      this.add.existing(npc);
+    }
   }
 
   private createUI() {
-    // Suspicion meter background
-    this.suspicionMeterGraphics = this.add.graphics();
-    this.drawSuspicionMeter();
+    // Match timer
+    this.matchTimerText = this.add.text(640, 20, `${this.matchTimer}s`, {
+      font: 'bold 24px Arial',
+      color: '#ffaa00',
+      backgroundColor: '#000000',
+      padding: { x: 15, y: 10 }
+    });
+    this.matchTimerText.setOrigin(0.5, 0);
+    this.matchTimerText.setScrollFactor(0);
 
     // Kill counter
     this.killCounterText = this.add.text(20, 20, `KILLS: ${this.gameManager.killCount}`, {
@@ -71,6 +97,10 @@ export class GameScene extends Phaser.Scene {
     });
     this.killCounterText.setScrollFactor(0);
 
+    // Suspicion meter
+    this.suspicionMeterGraphics = this.add.graphics();
+    this.suspicionMeterGraphics.setScrollFactor(0);
+
     // Suspicion text
     this.suspicionText = this.add.text(20, 50, `SUSPICION: ${Math.round(this.gameManager.suspicion)}%`, {
       font: '16px Arial',
@@ -80,15 +110,25 @@ export class GameScene extends Phaser.Scene {
     });
     this.suspicionText.setScrollFactor(0);
 
-    // Target info
-    const targetText = this.add.text(1260, 20, 'TARGET MARKED\n(Press E or Space to eliminate)', {
-      font: '12px Arial',
-      color: '#ff0000',
+    // Zone name
+    const zone = this.worldManager.getCurrentZone();
+    this.zoneNameText = this.add.text(1260, 20, zone.name.toUpperCase(), {
+      font: 'bold 16px Arial',
+      color: '#ff6600',
       backgroundColor: '#000000',
       align: 'right',
       padding: { x: 10, y: 5 }
     });
-    targetText.setOrigin(1, 0);
+    this.zoneNameText.setOrigin(1, 0);
+    this.zoneNameText.setScrollFactor(0);
+
+    // Target info
+    const targetText = this.add.text(20, 80, 'TARGET: RED MARKER | PRESS E/SPACE TO ELIMINATE | HOLD SHIFT TO BLEND', {
+      font: '12px Arial',
+      color: '#ff0000',
+      backgroundColor: '#000000',
+      padding: { x: 10, y: 5 }
+    });
     targetText.setScrollFactor(0);
   }
 
@@ -96,7 +136,7 @@ export class GameScene extends Phaser.Scene {
     this.suspicionMeterGraphics.clear();
 
     const meterX = 20;
-    const meterY = 80;
+    const meterY = 110;
     const meterWidth = 200;
     const meterHeight = 20;
 
@@ -106,15 +146,14 @@ export class GameScene extends Phaser.Scene {
 
     // Suspicion bar
     const suspicionRatio = Math.min(this.gameManager.suspicion / 100, 1);
-    const barColor = this.gameManager.suspicion > 70 ? 0xff0000 : this.gameManager.suspicion > 40 ? 0xffaa00 : 0x00ff00;
+    const barColor =
+      this.gameManager.suspicion > 70 ? 0xff0000 : this.gameManager.suspicion > 40 ? 0xffaa00 : 0x00ff00;
     this.suspicionMeterGraphics.fillStyle(barColor, 1);
     this.suspicionMeterGraphics.fillRect(meterX, meterY, meterWidth * suspicionRatio, meterHeight);
 
     // Border
     this.suspicionMeterGraphics.lineStyle(2, 0xffffff, 1);
     this.suspicionMeterGraphics.strokeRect(meterX, meterY, meterWidth, meterHeight);
-
-    this.suspicionMeterGraphics.setScrollFactor(0);
   }
 
   private setupInputHandlers() {
@@ -186,6 +225,7 @@ export class GameScene extends Phaser.Scene {
     // Update UI
     this.killCounterText.setText(`KILLS: ${this.gameManager.killCount}`);
     this.suspicionText.setText(`SUSPICION: ${Math.round(this.gameManager.suspicion)}%`);
+    this.matchTimerText.setText(`${this.matchTimer}s`);
     this.drawSuspicionMeter();
 
     // Mark target
@@ -196,18 +236,21 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateSuspicion() {
-    // Suspicion increases near NPCs, decreases when blending
     const playerBlending = this.player.isBlending;
     const closestNPC = this.findClosestNPC();
+    const zone = this.worldManager.getCurrentZone();
 
     if (closestNPC) {
       const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, closestNPC.x, closestNPC.y);
 
-      if (dist < 150) {
+      // Suspicion increases based on proximity and zone
+      const detectionRange = 150 + zone.difficulty * 10;
+
+      if (dist < detectionRange) {
         if (playerBlending) {
           this.gameManager.changeSuspicion(-0.5);
         } else {
-          this.gameManager.changeSuspicion(1);
+          this.gameManager.changeSuspicion(zone.difficulty * 0.3);
         }
       } else {
         this.gameManager.changeSuspicion(-0.2);
@@ -215,5 +258,15 @@ export class GameScene extends Phaser.Scene {
     } else {
       this.gameManager.changeSuspicion(-0.3);
     }
+  }
+
+  private endMatch() {
+    this.matchTimerText.setText('MATCH OVER!');
+    this.matchTimerText.setColor('#ff0000');
+    this.input.enabled = false;
+
+    this.time.delayedCall(2000, () => {
+      this.scene.restart();
+    });
   }
 }
